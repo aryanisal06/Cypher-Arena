@@ -12,6 +12,9 @@ export default function PhishingLab() {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   const handleDecision = (decision: 'safe' | 'phishing') => {
+    // 🚨 ADD THIS LINE RIGHT HERE:
+    console.error("🚨 BUTTON WAS CLICKED! Decision:", decision);
+
     if (decision === 'phishing') {
       setResult('success');
       completeLevel(2);
@@ -34,7 +37,7 @@ export default function PhishingLab() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={() => setIsInfoOpen(true)}
             className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
           >
@@ -43,7 +46,7 @@ export default function PhishingLab() {
         </div>
       </header>
 
-      <InfoModal 
+      <InfoModal
         isOpen={isInfoOpen}
         onClose={() => setIsInfoOpen(false)}
         title="Phishing Analysis"
@@ -59,7 +62,7 @@ export default function PhishingLab() {
                 <li>Suspicious links or attachments</li>
               </ul>
             </div>
-            <button 
+            <button
               onClick={() => setIsInfoOpen(false)}
               className="w-full mt-4 py-3 bg-primary text-slate-950 font-bold rounded-xl hover:bg-primary/90 transition-colors"
             >
@@ -71,15 +74,15 @@ export default function PhishingLab() {
       />
 
       <main className="flex-1 flex flex-col p-4 max-w-4xl mx-auto w-full gap-6 pb-24">
-        
+
         {/* Tabs */}
         <div className="flex p-1 bg-slate-800 rounded-xl self-start border border-white/5">
           <button
             onClick={() => setActiveTab('learn')}
             className={clsx(
               "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
-              activeTab === 'learn' 
-                ? "bg-primary text-terminal-black shadow-lg shadow-primary/20" 
+              activeTab === 'learn'
+                ? "bg-primary text-terminal-black shadow-lg shadow-primary/20"
                 : "text-slate-400 hover:text-slate-200"
             )}
           >
@@ -90,8 +93,8 @@ export default function PhishingLab() {
             onClick={() => setActiveTab('practice')}
             className={clsx(
               "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
-              activeTab === 'practice' 
-                ? "bg-primary text-terminal-black shadow-lg shadow-primary/20" 
+              activeTab === 'practice'
+                ? "bg-primary text-terminal-black shadow-lg shadow-primary/20"
                 : "text-slate-400 hover:text-slate-200"
             )}
           >
@@ -110,7 +113,7 @@ export default function PhishingLab() {
               <p className="text-slate-300 leading-relaxed mb-6">
                 Phishing is a social engineering attack used to steal user data, including login credentials and credit card numbers. Attackers masquerade as a trusted entity to trick the victim into opening an email or text message.
               </p>
-              
+
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="bg-slate-800/50 p-4 rounded-xl border border-white/5">
                   <div className="size-10 rounded-full bg-red-900/20 flex items-center justify-center text-red-500 mb-3">
@@ -149,7 +152,7 @@ export default function PhishingLab() {
               <p className="font-medium opacity-90 mb-4">
                 In the Practice tab, you'll be presented with a suspicious email. Use your knowledge to determine if it's safe or a phishing attempt.
               </p>
-              <button 
+              <button
                 onClick={() => setActiveTab('practice')}
                 className="bg-terminal-black text-primary px-6 py-2 rounded-lg font-bold hover:bg-black transition-colors"
               >
@@ -161,7 +164,7 @@ export default function PhishingLab() {
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
             {/* Email Interface */}
             <div className="rounded-xl border border-primary/20 bg-terminal-black overflow-hidden shadow-lg relative">
-              
+
               {/* Feedback Overlay */}
               {result && (
                 <div className="absolute inset-0 z-20 bg-background-dark/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
@@ -177,11 +180,11 @@ export default function PhishingLab() {
                     {result === 'success' ? 'Threat Neutralized!' : 'Security Breach!'}
                   </h3>
                   <p className="text-slate-300 mb-6 max-w-xs">
-                    {result === 'success' 
-                      ? 'Great job identifying the phishing attempt. You correctly spotted the mismatched domain and urgency.' 
+                    {result === 'success'
+                      ? 'Great job identifying the phishing attempt. You correctly spotted the mismatched domain and urgency.'
                       : 'You marked a malicious email as safe. The link led to a credential harvesting site.'}
                   </p>
-                  <button 
+                  <button
                     onClick={() => result === 'success' ? navigate('/labs') : setResult(null)}
                     className={clsx(
                       "px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-95",
@@ -226,9 +229,9 @@ export default function PhishingLab() {
                   <p>Dear Valued Customer,</p>
                   <p>We detected an unusual login from a new device located in <span className="font-bold text-white">Moscow, Russia</span>. For your protection, your account has been temporarily locked.</p>
                   <p className="font-semibold text-red-400">Action Required: You must verify your account identity immediately or your access will be permanently suspended within 24 hours.</p>
-                  
+
                   <div className="py-8 flex flex-col items-center">
-                    <button 
+                    <button
                       onClick={() => handleDecision('safe')} // In this context, clicking the link is "safe" decision (wrong choice)
                       className="group relative flex min-w-[200px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-8 bg-primary text-terminal-black text-sm font-bold shadow-md active:scale-95 transition-all"
                     >
@@ -270,14 +273,14 @@ export default function PhishingLab() {
 
             {/* Controls */}
             <div className="grid grid-cols-2 gap-4 pt-4">
-              <button 
+              <button
                 onClick={() => handleDecision('safe')}
                 className="flex items-center justify-center gap-2 h-14 rounded-xl border-2 border-primary/30 text-primary font-bold hover:bg-primary/10 transition-colors active:scale-95"
               >
                 <span className="material-symbols-outlined">verified_user</span>
                 Mark as Safe
               </button>
-              <button 
+              <button
                 onClick={() => handleDecision('phishing')}
                 className="flex items-center justify-center gap-2 h-14 rounded-xl bg-red-500/10 border-2 border-red-500/50 text-red-500 font-bold hover:bg-red-500/20 transition-colors active:scale-95"
               >

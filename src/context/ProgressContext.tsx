@@ -79,14 +79,41 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     setXp(prev => prev + amount);
   };
 
-  const completeLevel = (levelId: number) => {
+  const completeLevel = async (levelId: number) => {
+    if (!completedLevels.includes(levelId))
+      // TRIPWIRE 1: Did the button click actually reach this function?
+      console.log("🎯 completeLevel function fired for level:", levelId);
+
     if (!completedLevels.includes(levelId)) {
+      // TRIPWIRE 2: Did it pass the 'if' check?
+      console.log("✅ Level is new! Preparing to send fetch request...");
+
       setCompletedLevels(prev => [...prev, levelId]);
-      // Award XP for completing a level (e.g., 100 XP)
       addXp(100);
+
+      try {
+        const token = localStorage.getItem('cypher_token');
+
+        // TRIPWIRE 3: Right before the fetch
+        console.log("🚀 Launching fetch to /api/arena/complete");
+
+        const response = await fetch('/api/arena/complete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ levelId: levelId })
+        });
+
+        console.log("📡 Server responded with status:", response.status);
+      } catch (error) {
+        console.error("💥 Fetch completely failed:", error);
+      }
+    } else {
+      console.log("🛑 Blocked! Browser thinks this level is already completed in completedLevels array.");
     }
   };
-
   const isLevelCompleted = (levelId: number) => {
     return completedLevels.includes(levelId);
   };

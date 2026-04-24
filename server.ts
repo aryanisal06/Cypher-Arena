@@ -23,7 +23,7 @@ const pool = new Pool({
 export default app;
 
 async function startServer() {
-  
+
   const PORT = 3000;
 
 
@@ -212,6 +212,34 @@ async function startServer() {
       res.status(500).json({ error: "Failed to fetch arena progress" });
     }
   });
+  app.post("/api/arena/complete", authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user.userId;
+      const { levelId } = req.body;
+
+      // 1. Mark the level as completed in the user_levels table
+      // (Using ON CONFLICT so it updates if it already exists, or inserts if it's new)
+      await pool.query(
+        `INSERT INTO user_levels (user_id, level_id, completed, stars) 
+       VALUES ($1, $2, true, 3) 
+       ON CONFLICT (user_id, level_id) 
+       DO UPDATE SET completed = true`,
+        [userId, levelId]
+      );
+
+      // 2. Add 100 XP to the user's total stats
+      await pool.query(
+        `UPDATE users SET xp = xp + 100 WHERE id = $1`,
+        [userId]
+      );
+
+      res.status(200).json({ message: "Progress saved successfully!" });
+    } catch (error) {
+      console.error("Error saving progress:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
 
   // ==========================================
   // ROUTE 6: COMPLETE A LAB/NODE (PROTECTED)
