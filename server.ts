@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import cors from 'cors';
 import { createServer as createViteServer } from "vite";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
@@ -8,6 +9,8 @@ import { GoogleGenAI } from "@google/genai";
 import path from "path";
 import { Pool } from "pg";
 import bcrypt from "bcrypt";
+import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 const app = express();
@@ -21,6 +24,12 @@ const pool = new Pool({
   ssl: true,
 });
 export default app;
+
+app.use(cors({
+  origin: ["http://localhost:5173", "http://localhost:5174", "https://yourdomain.com"],
+  credentials: true // ← This is crucial for cookies/auth tokens
+}));
+
 
 async function startServer() {
 
@@ -51,6 +60,13 @@ async function startServer() {
     email: z.string().email("Invalid email address").max(100),
     password: z.string().min(8, "Password must be at least 8 characters").max(100),
   }).strict();
+  const transporter = nodemailer.createTransport({
+    service: 'gmail', // Or whatever email provider you use
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
 
   // ==========================================
   // ROUTE 1: REGISTER WITH NEON
@@ -186,6 +202,87 @@ async function startServer() {
     }
   });
 
+  // --- Route 1: Request Password Reset ---
+  app.post('/api/auth/forgot-password', async (req, res) => {
+    const { email } = req.body;
+
+    try {
+      // 1. Check if user exists
+      const userResult = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (userResult.rows.length === 0) {
+        // Security best practice: Don't reveal if the email exists or not
+        return res.status(200).json({ message: 'If that email exists, a reset link has been sent.' });
+      }
+
+      const userId = userResult.rows[0].id;
+
+      // 2. Generate a secure random token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+
+      // 3. Set expiration time (e.g., 1 hour from now)
+      const expireTime = new Date();
+      expireTime.setHours(expireTime.getHours() + 1);
+
+      // 4. Save token and expiry to database
+      await pool.query(
+        'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE id = $3',
+        [resetToken, expireTime, userId]
+      );
+
+      // 5. Send the email
+      const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+      console.log("🛠️ TEST: Reset Link Generated ->", resetLink);
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Cypher Arena - Password Reset Request',
+        text: `You requested a password reset. Click the link below to set a new password:\n\n${resetLink}\n\nIf you did not request this, please ignore this email. This link will expire in 1 hour.`,
+      };
+
+      await transporter.sendMail(mailOptions);
+      res.status(200).json({ message: 'If that email exists, a reset link has been sent.' });
+
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      res.status(500).json({ error: 'Server error during password reset request.' });
+    }
+  });
+
+  // --- Route 2: Set the New Password ---
+  app.post('/api/auth/reset-password', async (req, res) => {
+    const { token, newPassword } = req.body;
+
+    try {
+      // 1. Find user with this token AND ensure the token hasn't expired
+      const userResult = await pool.query(
+        'SELECT id FROM users WHERE reset_token = $1 AND reset_token_expires > NOW()',
+        [token]
+      );
+
+      if (userResult.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid or expired reset token.' });
+      }
+
+      const userId = userResult.rows[0].id;
+
+      // 2. Hash the new password securely
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+      // 3. Update password in DB and clear the token so it can't be used again
+      await pool.query(
+        'UPDATE users SET password = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2',
+        [hashedPassword, userId]
+      );
+
+      res.status(200).json({ message: 'Password successfully reset! You can now log in.' });
+
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({ error: 'Server error while resetting password.' });
+    }
+  });
+
   // ==========================================
   // ROUTE 5: GET ARENA PROGRESS (PROTECTED)
   // ==========================================
@@ -301,6 +398,7 @@ declare global {
   }
 }
 
+
 // JWT authentication middleware
 const authenticateToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const authHeader = req.headers['authorization'];
@@ -314,5 +412,6 @@ const authenticateToken = (req: express.Request, res: express.Response, next: ex
     next();
   });
 };
+
 
 startServer();

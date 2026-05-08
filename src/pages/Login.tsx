@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 
 export default function Login() {
@@ -26,7 +26,7 @@ export default function Login() {
     setPassword('');
   };
 
-  // --- NEW: Handle Google Sign-In ---
+  // --- Handle Google Sign-In ---
   const handleGoogleSuccess = async (credentialResponse: any) => {
     try {
       setIsLoading(true);
@@ -78,11 +78,9 @@ export default function Login() {
       }
 
       if (isLogin) {
-        // --- LOGIN SUCCESS ---
         localStorage.setItem('cypher_token', data.token);
         navigate('/arena');
       } else {
-        // --- SIGN UP SUCCESS ---
         setSuccess('Registration successful! You can now log in.');
         setIsLogin(true);
         setPassword('');
@@ -101,11 +99,11 @@ export default function Login() {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold text-white mb-3">Welcome Back</h2>
-          <p className="text-gray-400">Master cybersecurity one game at a time.</p>
+          <h2 className="text-4xl font-bold text-white mb-3">Welcome to Cypher Arena</h2>
+          <p className="text-gray-400">Master cybersecurity</p>
         </div>
 
-        {/* --- TABS --- */}
+        {/* TABS */}
         <div className="flex bg-[#1a1a1a] rounded-xl p-1 mb-8 border border-gray-800">
           <button
             onClick={() => toggleMode('login')}
@@ -127,7 +125,7 @@ export default function Login() {
           </button>
         </div>
 
-        {/* --- ALERTS --- */}
+        {/* ALERTS */}
         {error && (
           <div className="mb-6 bg-red-950/40 border border-red-900 text-red-400 px-4 py-3 rounded-lg flex items-center gap-3">
             <span className="material-symbols-outlined text-sm">warning</span>
@@ -142,7 +140,7 @@ export default function Login() {
           </div>
         )}
 
-        {/* --- GOOGLE SIGN IN BUTTON --- */}
+        {/* GOOGLE SIGN IN */}
         <div className="flex justify-center mb-6">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
@@ -153,14 +151,14 @@ export default function Login() {
           />
         </div>
 
-        {/* --- VISUAL DIVIDER --- */}
+        {/* DIVIDER */}
         <div className="flex items-center gap-4 mb-6">
           <hr className="flex-1 border-gray-800" />
           <span className="text-xs text-gray-500 uppercase tracking-widest">Or</span>
           <hr className="flex-1 border-gray-800" />
         </div>
 
-        {/* --- STANDARD FORM --- */}
+        {/* STANDARD FORM */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
 
           <div>
@@ -212,9 +210,13 @@ export default function Login() {
 
             {isLogin && (
               <div className="flex justify-end mt-2">
-                <button type="button" className="text-xs font-bold text-emerald-500 hover:text-emerald-400 transition-colors">
+                {/* UPDATED: Changed from <button> to <Link> */}
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-bold text-emerald-500 hover:text-emerald-400 transition-colors cursor-pointer"
+                >
                   Forgot Password?
-                </button>
+                </Link>
               </div>
             )}
           </div>

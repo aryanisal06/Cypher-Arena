@@ -25,6 +25,8 @@ const Settings = lazy(() => import('./pages/Settings'));
 const SQLInjectionLab = lazy(() => import('./pages/SQLInjectionLab'));
 const PasswordLab = lazy(() => import('./pages/PasswordLab'));
 const WebProtocolsLab = lazy(() => import('./pages/WebProtocolsLab'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPasswor'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 
 import { SettingsProvider } from './context/SettingsContext';
 import { ProgressProvider } from './context/ProgressContext';
@@ -54,7 +56,8 @@ export default function App() {
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/login" element={<Login />} />
-
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password/:token" element={<ResetPassword />} />
                 {/* Main App Routes with Bottom Nav */}
                 <Route element={<MainLayout />}>
                   <Route path="/arena" element={<Arena />} />
