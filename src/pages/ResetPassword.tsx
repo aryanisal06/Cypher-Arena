@@ -8,32 +8,32 @@ export default function ResetPassword() {
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
     const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setStatus('loading');
+        e.preventDefault();
+        setStatus('loading');
 
-    try {
-        const response = await fetch('/api/auth/reset-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, newPassword: password })
-        });
+        try {
+            const response = await fetch('/api/auth/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, newPassword: password })
+            });
 
-        if (response.ok) {
-            setStatus('success');
-            // Wait 3 seconds, then go to login
-            setTimeout(() => navigate('/login'), 3000);
-        } else {
-            // The backend received it, but rejected it (e.g., expired token)
-            setStatus('idle'); // Resets the button so they can try again
-            alert("Update failed. The reset link might be expired or invalid.");
+            if (response.ok) {
+                setStatus('success');
+                // Wait 3 seconds, then go to login
+                setTimeout(() => navigate('/login'), 3000);
+            } else {
+                // The backend received it, but rejected it (e.g., expired token)
+                setStatus('idle'); // Resets the button so they can try again
+                alert("Update failed. The reset link might be expired or invalid.");
+            }
+        } catch (error) {
+            // The frontend couldn't even reach the backend (e.g., server is offline)
+            setStatus('idle');
+            console.error("Fetch error:", error);
+            alert("Network error. Make sure your backend server is running!");
         }
-    } catch (error) {
-        // The frontend couldn't even reach the backend (e.g., server is offline)
-        setStatus('idle'); 
-        console.error("Fetch error:", error);
-        alert("Network error. Make sure your backend server is running!");
-    }
-};
+    };
 
     return (
         <div className="min-h-screen bg-background-dark flex items-center justify-center p-4">
