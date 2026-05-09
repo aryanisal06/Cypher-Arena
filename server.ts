@@ -10,10 +10,11 @@ import path from "path";
 import { Pool } from "pg";
 import bcrypt from "bcrypt";
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 const app = express();
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // 1. Initialize Google Auth Client
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -60,14 +61,6 @@ async function startServer() {
     email: z.string().email("Invalid email address").max(100),
     password: z.string().min(8, "Password must be at least 8 characters").max(100),
   }).strict();
-  const transporter = nodemailer.createTransport({
-    service: 'gmail', // Or whatever email provider you use
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
   // ==========================================
   // ROUTE 1: REGISTER WITH NEON
   // ==========================================
@@ -228,23 +221,26 @@ async function startServer() {
         'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE id = $3',
         [resetToken, expireTime, userId]
       );
-
-      // 5. Send the email
+      // 5. Send the email using RESEND API (Bypasses Render Firewall!)
       const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
       console.log("🛠️ TEST: Reset Link Generated ->", resetLink);
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
+
+      // Resend uses HTTP (Port 443) so it never gets blocked
+      await resend.emails.send({
+        from: 'onboarding@resend.dev', // You MUST use this exact test email on their free tier
         to: email,
         subject: 'Cypher Arena - Password Reset Request',
-        text: `You requested a password reset. Click the link below to set a new password:\n\n${resetLink}\n\nIf you did not request this, please ignore this email. This link will expire in 1 hour.`,
-      };
+        html: `<p>You requested a password reset.</p>
+               <p>Click the link below to set a new password:</p>
+               <a href="${resetLink}">${resetLink}</a>
+               <br><br>
+               <p>If you did not request this, please ignore this email.</p>`
+      });
 
-      await transporter.sendMail(mailOptions);
       res.status(200).json({ message: 'If that email exists, a reset link has been sent.' });
-
     } catch (error) {
       console.error('Forgot password error:', error);
-      res.status(500).json({ error: 'Server error during password reset request.' });
+      res.status(500).json({ error: 'Server error while sending reset email.' });
     }
   });
 

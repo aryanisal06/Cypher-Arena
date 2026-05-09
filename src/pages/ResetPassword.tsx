@@ -10,7 +10,11 @@ export default function ResetPassword() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setStatus('loading');
-
+        if (password.length < 8) {
+            setStatus('idle');
+            alert("Password must be at least 8 characters long.");
+            return;
+        }
         try {
             const response = await fetch('/api/auth/reset-password', {
                 method: 'POST',
@@ -34,6 +38,7 @@ export default function ResetPassword() {
             alert("Network error. Make sure your backend server is running!");
         }
     };
+
 
     return (
         <div className="min-h-screen bg-background-dark flex items-center justify-center p-4">
