@@ -227,7 +227,7 @@ async function startServer() {
 
       // Resend uses HTTP (Port 443) so it never gets blocked
       await resend.emails.send({
-        from: 'onboarding@resend.dev', // You MUST use this exact test email on their free tier
+        from: 'auth@cypherarena.in',
         to: email,
         subject: 'Cypher Arena - Password Reset Request',
         html: `<p>You requested a password reset.</p>
