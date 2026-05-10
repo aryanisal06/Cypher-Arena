@@ -13,6 +13,12 @@ import crypto from 'crypto';
 import { Resend } from 'resend';
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
+import dotenv from 'dotenv';
+import { Groq } from "groq-sdk";
+import { wrap } from "module";
+
+dotenv.config();
+
 const app = express();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -30,6 +36,20 @@ app.use(cors({
   origin: ["http://localhost:5173", "http://localhost:5174", "https://yourdomain.com"],
   credentials: true // ← This is crucial for cookies/auth tokens
 }));
+
+// JWT authentication middleware (declared here so it can be used by all routes below)
+const authenticateToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ error: "Access Denied" });
+
+  jwt.verify(token, process.env.JWT_SECRET as string, (err, user) => {
+    if (err) return res.status(403).json({ error: "Invalid Token" });
+    req.user = user;
+    next();
+  });
+};
 
 
 async function startServer() {
@@ -333,7 +353,6 @@ async function startServer() {
     }
   });
 
-
   // ==========================================
   // ROUTE 6: COMPLETE A LAB/NODE (PROTECTED)
   // ==========================================
@@ -364,6 +383,88 @@ async function startServer() {
   });
 
   // ==========================================
+  // ROUTE 7: PYTHON CODE EXECUTION (PROTECTED)
+  // ==========================================
+  app.post('/api/python/execute', authenticateToken, async (req, res) => {
+    try {
+      const { code } = req.body;
+
+      const pistonResponse = await fetch('https://emkc.org/api/v2/piston/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          language: 'python',
+          version: '3.10.0',
+          files: [{ content: code }]
+        })
+      });
+
+      const data = await pistonResponse.json();
+
+      // If Piston rejects the payload, it sends a "message" explaining why
+      if (data.message) {
+        console.error("Piston API Error:", data.message);
+        return res.status(400).json({ output: `Engine Error: ${data.message}` });
+      }
+
+      // If successful, Piston puts the output inside data.run.output
+      if (data.run && data.run.output !== undefined) {
+        return res.status(200).json({ output: data.run.output });
+      } else {
+        return res.status(400).json({ output: "Execution failed: Unknown error." });
+      }
+
+    } catch (error) {
+      console.error("Python Execution Error:", error);
+      return res.status(500).json({ output: "Server error connecting to Python engine." });
+    }
+  });
+  const groq = new Groq({ apiKey: process.env.GROK_API_KEY }); // Ensure this matches your .env
+
+  app.post("/api/chat", authenticateToken, async (req, res) => {
+    try {
+      const { message, context } = req.body;
+      let currentLocation = "Cypher-Arena Dashboard";
+      if (context.includes('phishing')) currentLocation = "Phishing Analysis Lab";
+      if (context.includes('crypto')) currentLocation = "Cryptography Lab";
+      if (context.includes('terminal') || context.includes('python')) currentLocation = "Python Terminal Sandbox";
+      if (context.includes('sql')) currentLocation = "SQL Injection Lab";
+
+      // 3. Inject the location into the AI's System Prompt
+      const chatCompletion = await groq.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content: `You are Cypher, an elite hacker and educational mentor for Cypher-Arena. 
+                    
+                    CRITICAL INTEL: The student is currently looking at the [${currentLocation}]. 
+                    If they ask for help with "this lab", assume they are talking about the ${currentLocation}.
+                    
+                    RULES:
+                    1. Use a cool, professional cyberpunk tone.
+                    2. ALWAYS give real, helpful, and accurate educational answers. 
+                    3. If they are stuck on a lab, give them clear, step-by-step hints to figure it out. Do not just give them the final answer.
+                    4. DO NOT wrap your responses in quotation marks.`
+          },
+          {
+            role: "user",
+            content: message
+          }
+        ],
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.2,
+        stream: false,
+      });
+      const botReply = chatCompletion.choices[0]?.message?.content;
+      return res.status(200).json({ reply: botReply });
+
+    } catch (error) {
+      console.error("Groq Error:", error);
+      return res.status(500).json({ reply: "Uplink failed. Llama node offline." });
+    }
+  })
+
+  // ==========================================
   // VITE & STATIC FILES
   // ==========================================
   if (process.env.NODE_ENV !== "production") {
@@ -384,7 +485,6 @@ async function startServer() {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
-
 // Augment Express Request to include `user`
 declare global {
   namespace Express {
@@ -393,21 +493,6 @@ declare global {
     }
   }
 }
-
-
-// JWT authentication middleware
-const authenticateToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) return res.status(401).json({ error: "Access Denied" });
-
-  jwt.verify(token, process.env.JWT_SECRET as string, (err, user) => {
-    if (err) return res.status(403).json({ error: "Invalid Token" });
-    req.user = user;
-    next();
-  });
-};
 
 
 startServer();

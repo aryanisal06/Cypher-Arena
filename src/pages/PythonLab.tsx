@@ -1,283 +1,225 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import clsx from 'clsx';
+import React, { useState, useRef, useEffect } from 'react';
 import { useProgress } from '../context/ProgressContext';
-import InfoModal from '../components/InfoModal';
+import { useSettings } from '../context/SettingsContext';
+import LabLayout from '../components/LabLayout';
+import { levels } from '../constants/levels';
+import clsx from 'clsx';
 
 export default function PythonLab() {
-  const navigate = useNavigate();
-  const { completeLevel } = useProgress();
+  const { addXp, completeLevel } = useProgress();
+  const { t } = useSettings();
+
+  // -- STATE --
+  const [input, setInput] = useState('');
+  const [output, setOutput] = useState<string[]>(['Python 3.10.12 (main, Jul 12 2024)', 'Type "help" or "license" for more information.', '>>> ']);
   const [activeTab, setActiveTab] = useState<'learn' | 'practice'>('learn');
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [code, setCode] = useState(`# Python Port Scanner
-import socket
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [result, setResult] = useState<'success' | 'failure' | null>(null);
+  const [isExecuting, setIsExecuting] = useState(false);
 
-target = "10.0.0.45"
-port = 80
+  // -- REAL PYTHON STATE --
+  const [scriptHistory, setScriptHistory] = useState<string[]>([]);
+  const [previousFullOutput, setPreviousFullOutput] = useState<string>('');
 
-def scan_target(ip, port):
-    print(f"Scanning {ip} on port {port}...")
-    
-    # STEP 1: Create a socket object
-    # Hint: s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    
-    
-    # STEP 2: Connect to the target
-    # Hint: result = s.connect_ex((ip, port))
-    
-    
-    # Check if port is open (0 means success)
-    if 'result' in locals() and result == 0:
-        return "OPEN"
-    else:
-        return "CLOSED"
+  // -- SANDBOX WIN CONDITION --
+  const [hasRunCommand, setHasRunCommand] = useState(false);
 
-# Run the scanner
-status = scan_target(target, port)
-print(f"Port {port} is {status}")`);
+  const terminalEndRef = useRef<HTMLDivElement>(null);
 
-  const [output, setOutput] = useState('');
-  const [isRunning, setIsRunning] = useState(false);
-  const [isSolved, setIsSolved] = useState(false);
+  const scrollToBottom = () => {
+    terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-  const runCode = () => {
-    setIsRunning(true);
-    setOutput('Initializing Python 3.9 environment...\n');
-    
-    setTimeout(() => {
-      // Simple heuristic validation
-      // We check if the user uncommented or typed the correct lines
-      const normalizedCode = code.replace(/\s/g, '');
-      const hasSocket = normalizedCode.includes('socket.socket(socket.AF_INET,socket.SOCK_STREAM)');
-      const hasConnect = normalizedCode.includes('.connect_ex((ip,port))');
+  useEffect(() => {
+    scrollToBottom();
+  }, [output]);
 
-      if (hasSocket && hasConnect) {
-        setOutput((prev) => prev + `> python scanner.py
-Scanning 10.0.0.45 on port 80...
-Port 80 is OPEN
+  // -- THE PURE INTERPRETER LOGIC --
+  // -- THE INTERNAL PYTHON SIMULATOR --
+  const handleExecute = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!input.trim() || isExecuting) return;
 
-[+] SUCCESS: Target identified.
-[+] VULNERABILITY: Outdated Apache server detected on port 80.
-`);
-        setIsSolved(true);
-        completeLevel(4);
-      } else {
-        setOutput((prev) => prev + `> python scanner.py
-Scanning 10.0.0.45 on port 80...
-Traceback (most recent call last):
-  File "scanner.py", line 18, in scan_target
-    NameError: name 's' is not defined OR connection failed.
+    const trimmedInput = input.trim();
+    setIsExecuting(true);
+    setHasRunCommand(true);
 
-[!] ERROR: Did you create the socket and connect correctly?
-[!] HINT: Uncomment the hint lines or type the code exactly as shown in hints.
-`);
+    // Immediately show their command in the terminal
+    setOutput(prev => [...prev.slice(0, -1), `>>> ${trimmedInput}`]);
+
+    // Our mini Python engine!
+    const simulatePython = (command: string) => {
+      if (!command) return "";
+
+      // 1. Handle print("Hello") or print('Hello')
+      const printMatch = command.match(/^print\s*\(\s*(['"])(.*?)\1\s*\)$/);
+      if (printMatch) return printMatch[2];
+
+      // 2. Handle simple math (e.g., 5 + 5, 10 * 2)
+      if (/^[0-9\s+\-*/().]+$/.test(command)) {
+        try {
+          // Safely evaluate simple math strings
+          return String(new Function(`return ${command}`)());
+        } catch {
+          return "SyntaxError: invalid syntax";
+        }
       }
-      setIsRunning(false);
-    }, 1500);
+
+      // 3. Handle variable assignment (e.g., target_ip = "192.168.1.1")
+      // Python REPL doesn't print anything when you assign a variable
+      if (/^[a-zA-Z_]\w*\s*=/.test(command)) {
+        return "";
+      }
+
+      // 4. Default Hacker Error Message for anything else
+      const keyword = command.split(' ')[0].replace(/[^a-zA-Z0-9_]/g, '');
+      return `Traceback (most recent call last):\n  File "<stdin>", line 1, in <module>\nNameError: name '${keyword}' is not defined`;
+    };
+
+    setTimeout(() => {
+      const resultOutput = simulatePython(trimmedInput);
+      let newLines: string[] = [];
+
+      if (resultOutput) {
+        newLines = resultOutput.split('\n');
+      }
+
+      // Add to history and give XP if it didn't throw an error
+      if (!resultOutput.includes('Error') && !resultOutput.includes('Traceback')) {
+        setScriptHistory(prev => [...prev, trimmedInput]);
+        addXp(5); // 5 XP for exploring!
+      }
+
+      newLines.push('>>> ');
+      setOutput(prev => [...prev, ...newLines]);
+
+      setInput('');
+      setIsExecuting(false);
+    }, 400); // Tiny delay to make it feel like it's processing remotely
+  };
+  const handleCompleteLab = () => {
+    addXp(100);
+    setResult('success');
+    const currentLevel = levels.find(l => l.path === '/lab/python');
+    if (currentLevel) {
+      completeLevel(currentLevel.id);
+    } else {
+      completeLevel(4); // Fallback to level 4
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background-dark text-slate-100 font-display flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between p-4 bg-background-dark border-b border-primary/20 sticky top-0 z-10">
-        <button onClick={() => navigate(-1)} className="flex items-center justify-center p-2 rounded-full hover:bg-primary/10 transition-colors text-white">
-          <span className="material-symbols-outlined">arrow_back</span>
-        </button>
-        <h1 className="text-lg font-bold tracking-tight text-center flex-1">Lab 03: Python Scripting</h1>
-        <button 
-          onClick={() => setIsInfoModalOpen(true)}
-          className="flex items-center justify-center p-2 rounded-full hover:bg-primary/10 transition-colors text-slate-400"
-        >
-          <span className="material-symbols-outlined">info</span>
-        </button>
-      </header>
-
-      <main className="flex-1 flex flex-col p-4 gap-4 max-w-4xl mx-auto w-full pb-24">
-        
-        {/* Info Modal */}
-        <InfoModal 
-          isOpen={isInfoModalOpen}
-          onClose={() => setIsInfoModalOpen(false)}
-          title="Python for Cybersecurity"
-          content={
-            <div className="space-y-4">
-              <p>Python is widely used in cybersecurity for its simplicity and powerful libraries.</p>
-              <div className="bg-slate-800 p-3 rounded-lg border border-white/5">
-                <h4 className="font-bold text-sm mb-1 text-primary">Common Uses:</h4>
-                <ul className="text-sm list-disc list-inside space-y-1 text-slate-400">
-                  <li>Network Scanning (using <code>socket</code>)</li>
-                  <li>Exploit Development</li>
-                  <li>Log Analysis</li>
-                  <li>Automating Security Tasks</li>
-                </ul>
-              </div>
-              <p>In this lab, you'll complete a simple port scanner script using the <code>socket</code> library.</p>
+    <LabLayout
+      title={t('python_security') || 'Python Security'}
+      subtitle="Open Sandbox"
+      practiceNumber="04"
+      infoTitle="Python Sandbox"
+      infoContent={
+        <div className="space-y-4">
+          <p className="text-sm text-slate-300">This is a live Python environment. Experiment freely!</p>
+        </div>
+      }
+      isInfoOpen={isInfoOpen}
+      setIsInfoOpen={setIsInfoOpen}
+      result={result}
+      xpGained={100}
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+    >
+      {activeTab === 'learn' ? (
+        <div className="space-y-6 pb-12">
+          {/* Keeping the theory section so they have something to read */}
+          <div className="bg-surface-dark p-8 rounded-2xl border border-white/10 space-y-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-1.5 h-8 bg-primary rounded-full"></div>
+              <h2 className="text-2xl font-black text-white italic uppercase tracking-tight">Terminal Commands</h2>
             </div>
-          }
-        />
-        
-        {/* Tabs */}
-        <div className="flex p-1 bg-slate-800 rounded-xl self-start border border-white/5">
-          <button
-            onClick={() => setActiveTab('learn')}
-            className={clsx(
-              "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
-              activeTab === 'learn' 
-                ? "bg-primary text-terminal-black shadow-lg shadow-primary/20" 
-                : "text-slate-400 hover:text-slate-200"
-            )}
-          >
-            <span className="material-symbols-outlined text-sm">school</span>
-            Learn
-          </button>
+            <div className="space-y-4">
+              {[
+                { title: 'Printing', desc: 'Output data to the terminal.', code: 'print("Hacking the mainframe...")' },
+                { title: 'Variables', desc: 'Store data in memory.', code: 'target_ip = "192.168.1.1"' },
+                { title: 'Math', desc: 'Calculate values.', code: 'print(5 * 5)' },
+              ].map((item, idx) => (
+                <div key={idx} className="flex gap-4 p-4 bg-black/40 rounded-xl border border-white/5 items-start">
+                  <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-primary font-black text-xs">{idx + 1}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-xs font-black text-white uppercase tracking-wider mb-1">{item.title}</h4>
+                    <p className="text-[11px] text-slate-400 font-medium tracking-tight mb-2 leading-relaxed">{item.desc}</p>
+                    <code className="text-[10px] text-primary font-mono bg-primary/5 px-2 py-0.5 rounded border border-primary/10 inline-block">{item.code}</code>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
           <button
             onClick={() => setActiveTab('practice')}
-            className={clsx(
-              "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
-              activeTab === 'practice' 
-                ? "bg-primary text-terminal-black shadow-lg shadow-primary/20" 
-                : "text-slate-400 hover:text-slate-200"
-            )}
+            className="w-full h-14 bg-primary text-black font-black uppercase tracking-[0.2em] rounded-xl shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
           >
-            <span className="material-symbols-outlined text-sm">code</span>
-            Practice
+            Access Terminal
           </button>
         </div>
+      ) : (
+        <div className="flex flex-col h-[520px] bg-black rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
 
-        {activeTab === 'learn' ? (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            <div className="bg-surface-dark p-6 rounded-2xl border border-white/10 shadow-sm">
-              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2 text-primary">
-                <span className="material-symbols-outlined">terminal</span>
-                Why Python for Cybersecurity?
-              </h2>
-              <p className="text-slate-300 leading-relaxed mb-4">
-                Python is the "Swiss Army Knife" of cybersecurity. Its simplicity and vast library ecosystem make it perfect for:
-              </p>
-              <ul className="space-y-3">
-                <li className="flex gap-3 items-start">
-                  <div className="size-6 rounded bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="material-symbols-outlined text-primary text-sm">network_check</span>
-                  </div>
-                  <div>
-                    <strong className="block text-white">Network Scanning</strong>
-                    <span className="text-sm text-slate-400">Building custom port scanners and packet sniffers using libraries like <code>socket</code> and <code>scapy</code>.</span>
-                  </div>
-                </li>
-                <li className="flex gap-3 items-start">
-                  <div className="size-6 rounded bg-purple-900/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="material-symbols-outlined text-purple-400 text-sm">bug_report</span>
-                  </div>
-                  <div>
-                    <strong className="block text-white">Exploit Development</strong>
-                    <span className="text-sm text-slate-400">Automating buffer overflows and creating proof-of-concept exploits.</span>
-                  </div>
-                </li>
-                <li className="flex gap-3 items-start">
-                  <div className="size-6 rounded bg-blue-900/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="material-symbols-outlined text-blue-400 text-sm">analytics</span>
-                  </div>
-                  <div>
-                    <strong className="block text-white">Forensics & Analysis</strong>
-                    <span className="text-sm text-slate-400">Parsing massive log files and analyzing malware behavior.</span>
-                  </div>
-                </li>
-              </ul>
+          <div className="bg-white/5 px-4 py-2 border-b border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">
+                Python Engine Active — Free Play
+              </span>
             </div>
 
-            <div className="bg-gradient-to-r from-primary/80 to-primary p-6 rounded-2xl text-terminal-black shadow-lg">
-              <h3 className="text-xl font-bold mb-2">Ready to code?</h3>
-              <p className="font-medium opacity-90 mb-4">
-                In the Practice tab, you'll write a real Python script to scan a target server for open ports. This is the first step in any penetration test.
-              </p>
-              <button 
-                onClick={() => setActiveTab('practice')}
-                className="bg-terminal-black text-primary px-6 py-2 rounded-lg font-bold hover:bg-black transition-colors"
-              >
-                Start Coding
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="grid lg:grid-cols-2 gap-4 h-[600px] animate-in fade-in slide-in-from-bottom-4">
-            {/* Editor */}
-            <div className="flex flex-col bg-[#1e1e1e] rounded-xl overflow-hidden shadow-2xl border border-slate-700">
-              <div className="bg-[#2d2d2d] px-4 py-2 flex items-center justify-between border-b border-white/10">
-                <span className="text-xs text-slate-400 font-mono">scanner.py</span>
-                <div className="flex gap-1.5">
-                  <div className="size-2.5 rounded-full bg-red-500/50"></div>
-                  <div className="size-2.5 rounded-full bg-yellow-500/50"></div>
-                  <div className="size-2.5 rounded-full bg-green-500/50"></div>
-                </div>
-              </div>
-              <textarea
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="flex-1 w-full bg-[#1e1e1e] text-slate-300 font-mono text-sm p-4 resize-none focus:outline-none leading-relaxed"
-                spellCheck={false}
-              />
-            </div>
-
-            {/* Output & Instructions */}
-            <div className="flex flex-col gap-4">
-              <div className="bg-surface-dark p-5 rounded-xl border border-white/10 shadow-sm flex-1">
-                <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-primary">
-                  <span className="material-symbols-outlined">assignment</span>
-                  Task: Port Scanner
-                </h3>
-                <p className="text-sm text-slate-300 mb-4">
-                  Complete the Python script to scan the target IP <code>10.0.0.45</code>.
-                  <br/><br/>
-                  You need to:
-                  <br/>
-                  1. Initialize a socket.
-                  <br/>
-                  2. Connect to the target.
-                </p>
-                <div className="bg-primary/10 p-3 rounded-lg border border-primary/20 text-xs text-primary">
-                  <strong>Tip:</strong> Look at the comments in the code editor. You can copy the code from the hints directly.
-                </div>
-              </div>
-
-              <div className="bg-terminal-black rounded-xl p-4 font-mono text-xs text-primary h-48 overflow-y-auto border border-primary/20 shadow-inner">
-                <div className="opacity-50 mb-2"># Terminal Output</div>
-                <pre className="whitespace-pre-wrap">{output}</pre>
-                {isRunning && <span className="animate-pulse">_</span>}
-              </div>
-
+            {/* NEW: Complete Lab Button */}
+            {hasRunCommand && (
               <button
-                onClick={runCode}
-                disabled={isRunning || isSolved}
-                className={clsx(
-                  "w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg",
-                  isSolved
-                    ? "bg-primary text-terminal-black cursor-default"
-                    : isRunning
-                    ? "bg-slate-700 text-slate-400 cursor-wait"
-                    : "bg-primary text-terminal-black hover:brightness-110 active:scale-[0.98]"
-                )}
+                onClick={handleCompleteLab}
+                className="bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-black border border-green-500/50 px-3 py-1 rounded text-xs font-bold transition-all"
               >
-                {isSolved ? (
-                  <>
-                    <span className="material-symbols-outlined">check_circle</span>
-                    Script Verified
-                  </>
-                ) : isRunning ? (
-                  <>
-                    <span className="material-symbols-outlined animate-spin">sync</span>
-                    Executing...
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined">play_arrow</span>
-                    Run Script
-                  </>
-                )}
+                Submit Mission
               </button>
-            </div>
+            )}
           </div>
-        )}
-      </main>
-    </div>
+
+          <div className="flex-1 p-6 font-mono text-sm overflow-y-auto space-y-1 custom-scrollbar bg-black/90">
+            {output.map((line, i) => (
+              <div key={i} className={clsx(
+                "leading-relaxed whitespace-pre-wrap",
+                line.startsWith('>>>') ? "text-primary font-bold mt-2"
+                  : line.includes('Error') || line.includes('Traceback') ? "text-red-400"
+                    : "text-slate-300"
+              )}>
+                {line}
+              </div>
+            ))}
+            <div ref={terminalEndRef} />
+          </div>
+
+          <div className="p-4 bg-primary/5 border-t border-white/5 relative">
+            <form onSubmit={handleExecute} className="flex gap-2">
+              <input
+                autoFocus
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="flex-1 bg-black border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-sm outline-none focus:border-primary/50 transition-colors"
+                placeholder=">>> type python code here..."
+                spellCheck="false"
+                autoComplete="off"
+                disabled={isExecuting}
+              />
+              <button
+                type="submit"
+                disabled={isExecuting || !input.trim()}
+                className="px-6 bg-primary text-black font-black uppercase tracking-widest text-xs rounded-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-30"
+              >
+                Run
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </LabLayout>
   );
 }

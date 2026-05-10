@@ -4,6 +4,7 @@ import MainLayout from './layouts/MainLayout';
 import Watermark from './components/Watermark';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { ArenaSkeleton, LabsSkeleton, ProfileSkeleton } from './components/Skeleton';
+import FloatingBot from './components/FloatingBot';
 
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login'));
@@ -42,6 +43,7 @@ function PageLoader() {
   return (
     <div className="min-h-screen bg-background-dark flex items-center justify-center">
       <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      <div className="min-h-screen bg-background-dark"></div>
     </div>
   );
 }
@@ -85,6 +87,17 @@ export default function App() {
                 {/* Default Redirect */}
                 <Route path="/" element={<Navigate to="/login" replace />} />
               </Routes>
+
+              <div className="min-h-screen bg-background-dark">
+                <Routes>
+                  {/* all your routes */}
+                </Routes>
+
+                {/* PUT IT HERE: Completely outside the router layout traps */}
+                <FloatingBot />
+              </div>
+
+
             </Suspense>
             <Watermark />
           </BrowserRouter>

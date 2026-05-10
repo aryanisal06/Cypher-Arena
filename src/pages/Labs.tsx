@@ -41,10 +41,10 @@ export default function Labs() {
       path: '/lab/terminal'
     },
     {
-      id: 'network',
+      id: 'python',
       levelId: 4,
-      title: 'Network Protocols',
-      subtitle: 'Lab: Packet Analysis',
+      title: 'Python',
+      subtitle: 'Lab: Python Programming',
       icon: 'hub',
       color: 'text-yellow-500',
       bg: 'bg-yellow-500/10',
@@ -232,7 +232,7 @@ export default function Labs() {
       </header>
 
       <main className="flex-1 p-4 max-w-md mx-auto w-full space-y-6">
-        <InfoModal 
+        <InfoModal
           isOpen={isLockedOpen}
           onClose={() => setIsLockedOpen(false)}
           title="Lab Locked"
@@ -245,7 +245,7 @@ export default function Labs() {
               <p className="text-slate-400">
                 This lab is currently locked. You must complete the previous modules in the Arena to unlock this challenge.
               </p>
-              <button 
+              <button
                 onClick={() => setIsLockedOpen(false)}
                 className="w-full py-3 rounded-xl bg-primary text-terminal-black font-bold"
               >
@@ -259,13 +259,13 @@ export default function Labs() {
           {labs.map((lab) => {
             const isUnlocked = isLevelUnlocked(lab.levelId);
             return (
-              <div 
+              <div
                 key={lab.id}
                 onClick={() => handleLabClick(lab)}
                 className={clsx(
                   "group p-4 rounded-2xl shadow-sm border flex items-center gap-4 transition-all active:scale-[0.98]",
-                  isUnlocked 
-                    ? "bg-surface-dark border-white/10 cursor-pointer hover:bg-white/10" 
+                  isUnlocked
+                    ? "bg-surface-dark border-white/10 cursor-pointer hover:bg-white/10"
                     : "bg-white/5 border-white/10 opacity-70 cursor-not-allowed"
                 )}
               >
