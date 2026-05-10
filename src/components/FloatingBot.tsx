@@ -26,15 +26,19 @@ export default function FloatingBot() {
                 <CypherBot />
             </div>
 
+            // Find this button in src/components/FloatingBot.tsx:
+
             {/* The Glowing Floating Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
+                // I changed font-black text-xl to font-bold text-2xl for better readability
                 className="w-14 h-14 bg-primary text-black rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:scale-110 active:scale-95 transition-all"
             >
                 {isOpen ? (
-                    <span className="material-symbols-outlined font-black text-xl">close</span>
+                    <span className="material-symbols-outlined font-bold text-2xl">close</span>
                 ) : (
-                    <span className="material-symbols-outlined font-black text-xl">terminal</span>
+                    // 👇 Change 'terminal' to 'smart_toy' for the new bot icon
+                    <span className="material-symbols-outlined font-bold text-2xl">smart_toy</span>
                 )}
             </button>
 

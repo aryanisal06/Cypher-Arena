@@ -90,14 +90,8 @@ export default function App() {
                 <Route path="/" element={<Navigate to="/login" replace />} />
               </Routes>
 
-              <div className="min-h-screen bg-background-dark">
-                <Routes>
-                  {/* all your routes */}
-                </Routes>
-
-                {/* PUT IT HERE: Completely outside the router layout traps */}
-                <FloatingBot />
-              </div>
+              {/* Floating bot sits outside Routes so it renders on every page */}
+              <FloatingBot />
 
 
             </Suspense>

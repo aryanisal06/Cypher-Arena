@@ -1,125 +1,30 @@
-import { useState, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
+import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
 
-interface NewsItem {
-  title: string;
-  summary: string;
-  source: string;
-  url: string;
-}
-
 export default function Trends() {
-  const [news, setNews] = useState<NewsItem[]>([]);
+  const [feeds, setFeeds] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-    const CACHE_KEY = 'cyber_news_cache';
-    const CACHE_EXPIRY = 60 * 60 * 1000; // 1 hour
-
     const fetchNews = async () => {
       try {
-        // 1. Check Cache
-        const cachedData = localStorage.getItem(CACHE_KEY);
-        if (cachedData) {
-          const { timestamp, data } = JSON.parse(cachedData);
-          if (Date.now() - timestamp < CACHE_EXPIRY && isMounted) {
-            setNews(data);
-            setLoading(false);
-            return;
-          }
-        }
-
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) throw new Error("API key missing");
-
-        const ai = new GoogleGenAI({ apiKey });
-        const response = await ai.models.generateContent({
-          model: 'gemini-3.1-pro-preview',
-          contents: 'Search for the latest news in cybersecurity and artificial intelligence. Return ONLY a valid JSON array of 5 recent articles. Each object must have exactly these keys: "title", "summary" (2 sentences), "source" (publisher name), and "url". Do not include any other text, markdown formatting, or explanation.',
-          config: {
-            tools: [{ googleSearch: {} }],
-            temperature: 0.2
-          }
-        });
-        
-        if (response.text && isMounted) {
-          let text = response.text;
-          // Clean up potential markdown formatting
-          text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-          
-          const parsed = JSON.parse(text);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setNews(parsed);
-            // 2. Save to Cache
-            localStorage.setItem(CACHE_KEY, JSON.stringify({
-              timestamp: Date.now(),
-              data: parsed
-            }));
-          } else {
-            throw new Error("Parsed JSON is not an array");
-          }
-        }
+        const response = await fetch('/api/cyber-news');
+        const data = await response.json();
+        setFeeds(data);
       } catch (err) {
-        console.error("Failed to fetch news:", err);
-        
-        // 3. Fallback to Stale Cache if available
-        const cachedData = localStorage.getItem(CACHE_KEY);
-        if (cachedData && isMounted) {
-          const { data } = JSON.parse(cachedData);
-          setNews(data);
-          return;
-        }
-
-        // 4. Hardcoded Fallback data in case of total failure
-        if (isMounted) {
-          setNews([
-            {
-              title: "AI-Powered Phishing Attacks on the Rise",
-              summary: "Cybercriminals are increasingly using generative AI to craft highly convincing phishing emails, bypassing traditional security filters. Organizations are urged to adopt AI-driven defense mechanisms.",
-              source: "CyberSecurity Weekly",
-              url: "#"
-            },
-            {
-              title: "New Zero-Day Vulnerability Found in Popular Framework",
-              summary: "Security researchers have uncovered a critical zero-day flaw that allows remote code execution. A patch has been released, and administrators are advised to update immediately.",
-              source: "Tech Threat News",
-              url: "#"
-            },
-            {
-              title: "Machine Learning Models Vulnerable to Data Poisoning",
-              summary: "A recent study highlights how attackers can subtly manipulate training data to compromise enterprise AI models. Experts recommend strict data validation pipelines.",
-              source: "AI Security Journal",
-              url: "#"
-            },
-            {
-              title: "Ransomware Gangs Adopt Automated Exploitation",
-              summary: "Threat actors are leveraging automated scripts to scan and exploit vulnerabilities at an unprecedented scale. The shift marks a new era of rapid-fire cyber attacks.",
-              source: "InfoSec Today",
-              url: "#"
-            },
-            {
-              title: "The Role of AI in Threat Hunting",
-              summary: "Security Operation Centers (SOCs) are integrating AI to sift through millions of logs and identify anomalous behavior. The technology significantly reduces the time to detect breaches.",
-              source: "Defense Tech",
-              url: "#"
-            }
-          ]);
-        }
+        console.error("Uplink failed:", err);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
-
     fetchNews();
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
+
+  if (loading) return (
+    <div className="min-h-screen bg-background-dark flex items-center justify-center font-mono text-primary">
+      <div className="animate-pulse">SYNCHRONIZING THREAT FEED...</div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background-dark text-slate-100 font-display flex flex-col pb-20">
@@ -150,9 +55,9 @@ export default function Trends() {
             </div>
           ))
         ) : (
-          news.map((item, index) => (
-            <a 
-              key={index} 
+          feeds.map((item, index) => (
+            <a
+              key={index}
               href={item.url !== '#' ? item.url : undefined}
               target="_blank"
               rel="noopener noreferrer"

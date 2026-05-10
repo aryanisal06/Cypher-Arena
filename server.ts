@@ -435,7 +435,7 @@ async function startServer() {
         messages: [
           {
             role: "system",
-            content: `You are Cypher, an elite hacker and educational mentor for Cypher-Arena. 
+            content: `[SYSTEM_RULE: OUTPUT_ONLY_DIALOGUE. DO NOT OUTPUT INTERNAL THOUGHTS, NOTES, OR PERSONA TAGS.] You are Cypher, an elite hacker and educational mentor for Cypher-Arena. 
                     
                     CRITICAL INTEL: The student is currently looking at the [${currentLocation}]. 
                     If they ask for help with "this lab", assume they are talking about the ${currentLocation}.
@@ -463,7 +463,33 @@ async function startServer() {
       return res.status(500).json({ reply: "Uplink failed. Llama node offline." });
     }
   })
+  app.get('/api/cyber-news', async (req, res) => {
+    try {
+      const apiKey = process.env.NEWS_API_KEY;
+      // We search for specific cybersecurity keywords to keep the feed relevant
+      const url = `https://newsapi.org/v2/everything?q=cybersecurity+OR+ransomware+OR+"zero-day"&sortBy=publishedAt&language=en&pageSize=10&apiKey=${apiKey}`;
 
+      const response = await fetch(url);
+      const data = await response.json();
+
+      // Transform the data to match your UI's format
+      const news = data.articles.map((art: any, index: number) => ({
+        id: index,
+        severity: art.description?.toLowerCase().includes('critical') ? 'CRITICAL' : 'HIGH',
+        category: 'LIVE FEED',
+        source: art.source.name,
+        timeAgo: new Date(art.publishedAt).toLocaleTimeString(),
+        title: art.title,
+        description: art.description,
+        url: art.url, // Link to the full article
+        tags: ['#LiveUpdate', '#CyberNews']
+      }));
+
+      res.json(news);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch intelligence." });
+    }
+  });
   // ==========================================
   // VITE & STATIC FILES
   // ==========================================
