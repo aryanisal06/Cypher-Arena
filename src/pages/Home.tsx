@@ -13,10 +13,17 @@ export default function LandingPage() {
             {/* Main Content Container (with the top padding we added earlier) */}
             <div className="z-10 max-w-5xl px-6 pt-24 pb-12 text-center space-y-8 flex flex-col items-center">
 
-                {/* Title */}
-                <h1 className="text-5xl md:text-7xl font-black text-white tracking-tight drop-shadow-[0_0_15px_rgba(16,185,129,0.6)]">
-                    Master the Grid.<br />
-                    <span className="text-primary whitespace-nowrap">Welcome to Cypher-Arena.</span>
+                {/* Title: We use text-4xl for mobile and md:text-7xl for desktop */}
+                <h1 className="text-4xl md:text-7xl font-black text-white tracking-tight drop-shadow-[0_0_15px_rgba(16,185,129,0.6)] flex flex-col items-center gap-2 md:gap-6 px-4">
+
+                    {/* Allow "Master the Grid" to wrap if the phone is very small */}
+                    <span className="text-center">Master the Grid.</span>
+
+                    {/* Change whitespace-nowrap to md:whitespace-nowrap so it wraps on mobile */}
+                    <span className="text-primary text-center md:whitespace-nowrap">
+                        Welcome to Cypher-Arena.
+                    </span>
+
                 </h1>
                 {/* 1. NEW TAGLINE added here */}
                 <h2 className="text-xl md:text-2xl text-primary font-bold tracking-widest uppercase drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]">
