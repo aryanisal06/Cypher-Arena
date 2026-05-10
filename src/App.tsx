@@ -5,6 +5,7 @@ import Watermark from './components/Watermark';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { ArenaSkeleton, LabsSkeleton, ProfileSkeleton } from './components/Skeleton';
 import FloatingBot from './components/FloatingBot';
+import Home from './pages/Home';
 
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login'));
@@ -57,6 +58,7 @@ export default function App() {
           <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
               <Routes>
+                <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password/:token" element={<ResetPassword />} />

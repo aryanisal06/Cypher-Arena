@@ -6,6 +6,7 @@ import InfoModal from '../components/InfoModal';
 import { Link } from 'react-router-dom';
 import { levels, type Level } from '../constants/levels';
 import CypherBot from '../components/CypherBot';
+import RankProgress from '../components/RankProgress';
 
 // Interfaces for our Backend Data
 interface DBLevel {
@@ -187,7 +188,7 @@ export default function Arena() {
       )
     }
   };
-  <CypherBot />
+
   // Generate SVG path string with smooth, curved lines
   const generatePath = () => {
     const width = 448; // max-w-md approx
